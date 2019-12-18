@@ -42,14 +42,15 @@
 #define MAVLINK_STREAM_H_
 
 #include <drivers/drv_hrt.h>
+#include <px4_platform_common/module_params.h>
+#include <containers/List.hpp>
 
 class Mavlink;
 
-class MavlinkStream
+class MavlinkStream : public ListNode<MavlinkStream *>
 {
 
 public:
-	MavlinkStream *next{nullptr};
 
 	MavlinkStream(Mavlink *mavlink);
 	virtual ~MavlinkStream() = default;
@@ -92,6 +93,13 @@ public:
 	virtual unsigned get_size() = 0;
 
 	/**
+	 * This function is called in response to a MAV_CMD_REQUEST_MESSAGE command. The default implementation is to
+	 * just reset the counter to immediately send one message.
+	 */
+	virtual void request_message(float param1 = 0.0, float param2 = 0.0, float param3 = 0.0, float param4 = 0.0,
+				     float param5 = 0.0, float param6 = 0.0, float param7 = 0.0) { reset_last_sent(); }
+
+	/**
 	 * Get the average message size
 	 *
 	 * For a normal stream this equals the message size,
@@ -100,6 +108,17 @@ public:
 	 * needs to be reserved
 	 */
 	virtual unsigned get_size_avg() { return get_size(); }
+
+	/**
+	 * @return true if the first message of this stream has been sent
+	 */
+	bool first_message_sent() const { return _first_message_sent; }
+
+	/**
+	 * Reset the time of last sent to 0. Can be used if a message over this
+	 * stream needs to be sent immediately.
+	 */
+	void reset_last_sent() { _last_sent = 0; }
 
 protected:
 	Mavlink      *const _mavlink;
@@ -117,6 +136,7 @@ protected:
 
 private:
 	hrt_abstime _last_sent{0};
+	bool _first_message_sent{false};
 };
 
 
